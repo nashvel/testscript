@@ -449,6 +449,40 @@ class GitCommitGenerator(QMainWindow):
                 );
                 border-radius: 2px;
             }
+            
+            /* Success message box */
+            QMessageBox {
+                background-color: #2a2a4a;
+                color: white;
+            }
+            QMessageBox QLabel {
+                color: white;
+                font-size: 14px;
+            }
+            QMessageBox QPushButton {
+                background: #6a11cb;
+                color: white;
+                border: 1px solid #8a4bff;
+                padding: 6px 16px;
+                border-radius: 4px;
+                min-width: 80px;
+            }
+            QMessageBox QPushButton:hover {
+                background: #7d2bff;
+            }
+            
+            /* Dropdown list */
+            QComboBox QAbstractItemView {
+                background: #2a2a4a;
+                color: white;
+                selection-background-color: #6a11cb;
+                border: 1px solid #444;
+                outline: none;
+            }
+            QComboBox::item:selected {
+                background: #6a11cb;
+                color: white;
+            }
         """)
         self.stop_btn.setObjectName("stopButton")
     

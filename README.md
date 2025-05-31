@@ -175,13 +175,13 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 If you find this tool useful, consider supporting its development:
 
-[!["Buy Me A Coffee"](https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png)](https://www.buymeacoffee.com/yourusername)
+[!["Buy Me A Coffee"](https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png)](https://www.facebook.com/github.nashvel)
 
-Or via [PayPal](https://paypal.me/yourusername)
+Or via [PayPal](https://paypal.me/LotisQuiblat?country.x=PH&locale.x=en_US)
 
 ## Author
 
-[Your Name] - [Your Email]
+[Nacht] - [nash.backup21@gmail.com]
 
 ---
 

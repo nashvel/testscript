@@ -61,34 +61,76 @@ class CommitWorker(QThread):
                 branch = self._run_command('git branch --show-current')
                 if branch:
                     try:
-                        # First, set the remote URL without authentication
-                        self.status.emit("Configuring Git remote...")
-                        self._run_command(f'git remote set-url origin {self.github_url}')
+                        # Verify repository exists and token has access
+                        self.status.emit("Verifying GitHub access...")
+                        repo_name = self.github_url.rstrip('/').split('/')[-1].replace('.git', '')
+                        test_url = f"https://api.github.com/repos/{self.github_user}/{repo_name}"
                         
-                        # Configure Git to use credential helper
-                        self._run_command('git config --local credential.helper store --replace-all')
+                        try:
+                            import requests
+                            headers = {
+                                'Authorization': f'token {self.github_token}',
+                                'Accept': 'application/vnd.github.v3+json'
+                            }
+                            response = requests.get(test_url, headers=headers, timeout=10)
+                            
+                            if response.status_code == 401:
+                                raise RuntimeError("Invalid GitHub token. Please check your token and try again.")
+                            elif response.status_code == 403:
+                                raise RuntimeError("Token doesn't have sufficient permissions. Needs 'repo' scope.")
+                            elif response.status_code == 404:
+                                # Try to create the repository if it doesn't exist
+                                create_repo = QMessageBox.question(
+                                    self.parent(), 'Create Repository',
+                                    f'Repository {repo_name} not found. Create it on GitHub?',
+                                    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+                                )
+                                if create_repo == QMessageBox.StandardButton.Yes:
+                                    create_data = {'name': repo_name, 'private': False}
+                                    response = requests.post(
+                                        'https://api.github.com/user/repos',
+                                        headers=headers,
+                                        json=create_data,
+                                        timeout=10
+                                    )
+                                    response.raise_for_status()
+                                    self.status.emit(f"Created repository: {repo_name}")
+                                else:
+                                    raise RuntimeError(f"Repository {repo_name} not found on GitHub")
+                            
+                            response.raise_for_status()
+                            
+                        except ImportError:
+                            self.status.emit("Note: Install 'requests' for better GitHub API integration")
                         
-                        # Create a credentials string
-                        credentials = f"url={self.github_url}\nusername={self.github_user}\npassword={self.github_token}\n"
+                        # Configure Git
+                        self.status.emit("Configuring Git...")
+                        self._run_command('git config --local user.name "GitHub Commit Generator"')
+                        self._run_command(f'git config --local user.email "{self.github_user}@users.noreply.github.com"')
                         
-                        # Write credentials to git-credentials file
-                        cred_file = os.path.expanduser('~/.git-credentials')
-                        with open(cred_file, 'a') as f:
-                            f.write(credentials)
+                        # Set up remote
+                        self.status.emit("Setting up remote...")
+                        auth_url = f"https://{self.github_user}:{self.github_token}@github.com/{self.github_user}/{repo_name}.git"
+                        self._run_command(f'git remote set-url origin {auth_url}')
                         
-                        # Set safe directory
-                        self._run_command(f'git config --global --add safe.directory {self.repo_path}')
-                        
-                        # Push with authentication
+                        # Push with force to handle any potential conflicts
                         self.status.emit("Pushing to GitHub...")
-                        push_cmd = f'git push -u origin {branch}'
+                        push_cmd = f'git push -f -u origin {branch}'
                         self._run_command(push_cmd, capture_output=False)
+                        
+                        # Clean up credentials from URL
+                        self._run_command(f'git remote set-url origin {self.github_url}')
                         self.status.emit("Successfully pushed to GitHub!")
                         
                     except Exception as e:
                         error_msg = f"Error pushing to GitHub: {str(e)}\n"
-                        error_msg += f"Command: {push_cmd if 'push_cmd' in locals() else 'N/A'}\n"
-                        error_msg += f"Make sure your GitHub token has the correct permissions (repo scope)."
+                        if 'push_cmd' in locals():
+                            error_msg += f"Command: {push_cmd}\n"
+                        error_msg += "\nTroubleshooting tips:\n"
+                        error_msg += "1. Verify your GitHub token has 'repo' scope\n"
+                        error_msg += "2. Make sure the repository exists and you have write access\n"
+                        error_msg += "3. Check your internet connection\n"
+                        error_msg += "4. Try using SSH instead of HTTPS if possible"
                         self.status.emit(error_msg)
                         raise
             

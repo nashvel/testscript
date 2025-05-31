@@ -61,19 +61,35 @@ class CommitWorker(QThread):
                 branch = self._run_command('git branch --show-current')
                 if branch:
                     try:
-                        # URL encode username and token to handle special characters
-                        encoded_user = quote_plus(self.github_user)
-                        encoded_token = quote_plus(self.github_token)
-                        # Update remote URL with encoded credentials
-                        auth_url = self.github_url.replace('https://', f'https://{encoded_user}:{encoded_token}@')
-                        self.status.emit(f"Setting up remote with authentication...")
-                        self._run_command(f'git remote set-url origin {auth_url}')
+                        # First, set the remote URL without authentication
+                        self.status.emit("Configuring Git remote...")
+                        self._run_command(f'git remote set-url origin {self.github_url}')
+                        
+                        # Configure Git to use credential helper
+                        self._run_command('git config --local credential.helper store --replace-all')
+                        
+                        # Create a credentials string
+                        credentials = f"url={self.github_url}\nusername={self.github_user}\npassword={self.github_token}\n"
+                        
+                        # Write credentials to git-credentials file
+                        cred_file = os.path.expanduser('~/.git-credentials')
+                        with open(cred_file, 'a') as f:
+                            f.write(credentials)
+                        
+                        # Set safe directory
+                        self._run_command(f'git config --global --add safe.directory {self.repo_path}')
                         
                         # Push with authentication
-                        self._run_command(f'git push -u origin {branch}')
+                        self.status.emit("Pushing to GitHub...")
+                        push_cmd = f'git push -u origin {branch}'
+                        self._run_command(push_cmd, capture_output=False)
                         self.status.emit("Successfully pushed to GitHub!")
+                        
                     except Exception as e:
-                        self.status.emit(f"Error pushing to GitHub: {str(e)}")
+                        error_msg = f"Error pushing to GitHub: {str(e)}\n"
+                        error_msg += f"Command: {push_cmd if 'push_cmd' in locals() else 'N/A'}\n"
+                        error_msg += f"Make sure your GitHub token has the correct permissions (repo scope)."
+                        self.status.emit(error_msg)
                         raise
             
             if self.running:
@@ -82,7 +98,7 @@ class CommitWorker(QThread):
         except Exception as e:
             self.finished.emit(False, f"Error: {str(e)}")
     
-    def _run_command(self, command, env_vars=None):
+    def _run_command(self, command, env_vars=None, capture_output=True):
         import subprocess
         try:
             # Prepare environment
@@ -94,15 +110,20 @@ class CommitWorker(QThread):
             result = subprocess.run(
                 command, 
                 shell=True, 
-                capture_output=True, 
+                capture_output=capture_output, 
                 text=True, 
                 check=True,
                 env=env
             )
-            return result.stdout.strip()
+            return result.stdout.strip() if capture_output else ""
         except subprocess.CalledProcessError as e:
-            self.status.emit(f"Error: {e.stderr}")
-            raise
+            error_msg = f"Command failed: {command}\n"
+            if e.stderr:
+                error_msg += f"Error: {e.stderr}\n"
+            if e.stdout:
+                error_msg += f"Output: {e.stdout}\n"
+            self.status.emit(error_msg.strip())
+            raise RuntimeError(error_msg) from e
     
     def stop(self):
         self.running = False

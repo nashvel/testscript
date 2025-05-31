@@ -2,6 +2,7 @@ import sys
 import os
 import datetime
 import webbrowser
+from urllib.parse import quote_plus
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
                            QLabel, QLineEdit, QPushButton, QProgressBar, QTextEdit, QScrollArea,
                            QFileDialog, QMessageBox, QGroupBox, QComboBox, QFrame, QGraphicsDropShadowEffect)
@@ -60,8 +61,12 @@ class CommitWorker(QThread):
                 branch = self._run_command('git branch --show-current')
                 if branch:
                     try:
-                        # Update remote URL with authentication
-                        auth_url = self.github_url.replace('https://', f'https://{self.github_user}:{self.github_token}@')
+                        # URL encode username and token to handle special characters
+                        encoded_user = quote_plus(self.github_user)
+                        encoded_token = quote_plus(self.github_token)
+                        # Update remote URL with encoded credentials
+                        auth_url = self.github_url.replace('https://', f'https://{encoded_user}:{encoded_token}@')
+                        self.status.emit(f"Setting up remote with authentication...")
                         self._run_command(f'git remote set-url origin {auth_url}')
                         
                         # Push with authentication

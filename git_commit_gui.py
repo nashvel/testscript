@@ -3,7 +3,7 @@ import os
 import datetime
 import webbrowser
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
-                           QLabel, QLineEdit, QPushButton, QProgressBar, QTextEdit,
+                           QLabel, QLineEdit, QPushButton, QProgressBar, QTextEdit, QScrollArea,
                            QFileDialog, QMessageBox, QGroupBox, QComboBox, QFrame, QGraphicsDropShadowEffect)
 from PyQt6.QtCore import Qt, QThread, pyqtSignal, QSize, QUrl
 from PyQt6.QtGui import QIcon, QFont, QPixmap, QPainter, QPainterPath, QDesktopServices, QColor
@@ -127,22 +127,26 @@ class GitCommitGenerator(QMainWindow):
         self.central_widget = QWidget()
         self.setCentralWidget(self.central_widget)
         
-        self.main_layout = QVBoxLayout(self.central_widget)
-        self.main_layout.setContentsMargins(15, 15, 15, 15)
-        self.main_layout.setSpacing(15)
+        # Create main layout
+        main_layout = QVBoxLayout(self.central_widget)
+        main_layout.setContentsMargins(15, 15, 15, 15)
+        main_layout.setSpacing(15)
         
+        # Create content frame
         content_frame = QFrame()
+        content_frame.setObjectName("contentFrame")
         content_frame.setStyleSheet("""
-            QFrame {
+            QFrame#contentFrame {
                 background: rgba(255, 255, 255, 0.15);
                 border-radius: 10px;
                 border: 1px solid rgba(255, 255, 255, 0.2);
             }
-            QFrame:hover {
+            QFrame#contentFrame:hover {
                 background: rgba(255, 255, 255, 0.2);
             }
         """)
         
+        # Add shadow effect
         shadow = QGraphicsDropShadowEffect()
         shadow.setBlurRadius(20)
         shadow.setXOffset(0)
@@ -150,23 +154,16 @@ class GitCommitGenerator(QMainWindow):
         shadow.setColor(QColor(0, 0, 0, 50))
         content_frame.setGraphicsEffect(shadow)
         
+        # Create content layout
         content_layout = QVBoxLayout(content_frame)
         content_layout.setContentsMargins(20, 20, 20, 20)
         content_layout.setSpacing(15)
         
-        self.main_layout.addWidget(content_frame)
+        # Add content frame to main layout
+        main_layout.addWidget(content_frame)
+        
+        # Store content layout for later use
         self.content_layout = content_layout
-        
-        main_widget = QWidget()
-        layout = QVBoxLayout()
-        main_widget.setLayout(layout)
-        
-        for i in range(layout.count()):
-            item = layout.itemAt(i)
-            if item.widget():
-                self.content_layout.addWidget(item.widget())
-            elif item.layout():
-                self.content_layout.addLayout(item.layout())
         
         # Repository settings group
         repo_group = QGroupBox("Repository Settings")
@@ -235,16 +232,20 @@ class GitCommitGenerator(QMainWindow):
         button_layout.addWidget(self.start_btn)
         button_layout.addWidget(self.stop_btn)
         
-        # Add all to main layout
-        layout.addWidget(repo_group)
-        layout.addWidget(commit_group)
-        layout.addWidget(QLabel("Progress:"))
-        layout.addWidget(self.progress_bar)
-        layout.addWidget(QLabel("Status:"))
-        layout.addWidget(self.status_label)
-        layout.addWidget(QLabel("Log:"))
-        layout.addWidget(self.log_area, 1)
-        layout.addLayout(button_layout)
+        # Add widgets directly to content layout
+        self.content_layout.addWidget(repo_group)
+        self.content_layout.addWidget(commit_group)
+        self.content_layout.addWidget(QLabel("Progress:"))
+        self.content_layout.addWidget(self.progress_bar)
+        self.content_layout.addWidget(QLabel("Status:"))
+        self.content_layout.addWidget(self.status_label)
+        self.content_layout.addWidget(QLabel("Log:"))
+        self.content_layout.addWidget(self.log_area, 1)
+        
+        # Add button layout
+        button_container = QWidget()
+        button_container.setLayout(button_layout)
+        self.content_layout.addWidget(button_container)
         
         # Add coffee button to show donation section
         self.coffee_btn = QPushButton()
@@ -334,12 +335,14 @@ class GitCommitGenerator(QMainWindow):
         donation_layout.addLayout(text_layout, 1)
         
         # Add coffee button and donation frame to main layout
-        button_layout = QHBoxLayout()
+        button_container = QWidget()
+        button_layout = QHBoxLayout(button_container)
         button_layout.addStretch()
         button_layout.addWidget(self.coffee_btn)
         
-        layout.addLayout(button_layout)
-        layout.addWidget(self.donation_frame)
+        # Add to content layout
+        self.content_layout.addWidget(button_container)
+        self.content_layout.addWidget(self.donation_frame)
         
         # Connect coffee button to toggle donation section
         self.coffee_btn.clicked.connect(self.toggle_donation_section)

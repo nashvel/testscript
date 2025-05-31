@@ -14,67 +14,117 @@ A Python utility with both CLI and GUI interfaces for generating multiple Git co
 - Interactive log display
 - Dark theme with smooth animations
 - Easy repository selection
-- Optional GitHub remote configuration
-
-### CLI Version
-- Creates a configurable number of Git commits
-- Automatically initializes a Git repository if needed
-- Tracks commit history in a `commit_log.txt` file
-- Includes timestamps in commit messages for tracking
-- Simple, clean Python implementation
 
 ## Prerequisites
 
 - Python 3.6 or higher
-- Git installed on your system
+- Git installed and configured on your system
+- (Optional) GitHub account for pushing commits
 
 ## Installation
 
-1. Clone this repository:
+1. Clone or download this repository:
    ```bash
    git clone https://github.com/yourusername/github-script.git
    cd github-script
    ```
 
-2. No additional Python packages are required beyond the standard library.
+2. Install the required Python packages:
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+## Getting a GitHub Personal Access Token
+
+1. Go to GitHub → Settings → Developer settings → Personal access tokens → Tokens (classic)
+2. Click "Generate new token"
+3. Give your token a descriptive name (e.g., "Commit Generator")
+4. Select these scopes:
+   - `repo` (Full control of private repositories)
+   - `workflow` (Update GitHub Action workflows)
+5. Click "Generate token"
+6. **Important**: Copy the token immediately - you won't be able to see it again!
 
 ## Usage
 
-### GUI Version
-
-Run the GUI application:
+### GUI Version (Recommended)
 
 ```bash
-./run_gui.sh
-# Or directly with Python:
+# Run the GUI application
 python3 git_commit_gui.py
 ```
 
-1. Select your repository directory
-2. (Optional) Enter your GitHub repository URL
-3. Choose the number of commits to generate
-4. Click "Start" to begin
-5. Monitor progress in the log area
+#### Step-by-Step Guide:
 
-### CLI Version
+1. **Select Repository Directory**
+   - Click "Browse" and select your local Git repository
+   - Or enter the path manually
+   - If the directory isn't a Git repository, one will be initialized
 
-Run the command-line version:
+2. **GitHub Integration (Optional)**
+   - Enter your GitHub repository URL (e.g., `https://github.com/username/repo.git`)
+   - Enter your GitHub username
+   - Paste your GitHub personal access token
+
+3. **Configure Commits**
+   - Use the dropdown to select the number of commits to generate (1-100)
+   - Each commit will have a unique timestamp and message
+
+4. **Generate Commits**
+   - Click "Start" to begin generating commits
+   - Monitor progress in the log area
+   - The progress bar shows overall completion
+   - Detailed status messages appear below the progress bar
+
+5. **Pushing to GitHub**
+   - If GitHub URL is provided, commits will be automatically pushed
+   - The app will verify your access and create the repository if needed
+   - You'll be prompted before creating a new repository
+### Command Line Version
+
+For advanced users, a command-line version is available:
 
 ```bash
-python3 mass_commit.py
+python3 mass_commits.py --repo /path/to/repo --count 10 --github-url https://github.com/username/repo.git
 ```
 
-This will:
-1. Initialize a Git repository in the current directory (if not already a Git repo)
-2. Create 100 commits with sequential messages
-3. Generate a `commit_log.txt` file tracking all commits
+## Troubleshooting
 
-### Customization
+### Common Issues
 
-You can modify the script to:
-- Change the number of commits by adjusting the range in the `make_commits()` function
-- Modify the commit message format by editing the `git commit -m` command
-- Change the tracked file name from `commit_log.txt` to any other filename
+1. **Permission Denied Errors**
+   - Ensure your GitHub token has the `repo` scope
+   - Verify you have write access to the repository
+
+2. **Repository Not Found**
+   - Check the repository URL is correct
+   - Ensure the repository exists and is not private (unless using a token with private repo access)
+
+3. **Authentication Failures**
+   - Generate a new token if the current one is expired
+   - Make sure to copy the entire token correctly
+
+4. **Push Rejected**
+   - Try enabling the "Force Push" option if you're working with an existing repository
+   - Make sure you have the latest changes before pushing
+
+## Security Notes
+
+- Your GitHub token is only used during the push operation and is not stored
+- For better security, consider using SSH authentication
+- Never commit your token to version control
+
+## Contributing
+
+Contributions are welcome! Please open an issue or submit a pull request.
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+---
+
+💡 **Tip**: For best results, use this tool responsibly and in accordance with GitHub's Terms of Service.
 
 ## Screenshots
 
@@ -98,6 +148,10 @@ Created commit 100/100
 
 All 100 commits have been created!
 ```
+
+## Contributors
+
+- [nacht](https://github.com/nacht) - Main contributor
 
 ## License
 

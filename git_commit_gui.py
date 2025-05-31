@@ -1,11 +1,12 @@
 import sys
 import os
 import datetime
+import webbrowser
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
                            QLabel, QLineEdit, QPushButton, QProgressBar, QTextEdit,
-                           QFileDialog, QMessageBox, QGroupBox, QComboBox)
-from PyQt6.QtCore import Qt, QThread, pyqtSignal
-from PyQt6.QtGui import QIcon, QFont
+                           QFileDialog, QMessageBox, QGroupBox, QComboBox, QFrame)
+from PyQt6.QtCore import Qt, QThread, pyqtSignal, QSize, QUrl
+from PyQt6.QtGui import QIcon, QFont, QPixmap, QPainter, QPainterPath, QDesktopServices
 
 class CommitWorker(QThread):
     progress = pyqtSignal(int)
@@ -87,15 +88,54 @@ class GitCommitGenerator(QMainWindow):
         self.worker = None
         self.init_ui()
     
+    def create_round_avatar(self, image_path, size=80):
+        """Create a circular avatar from an image"""
+        pixmap = QPixmap(image_path).scaled(size, size, Qt.AspectRatioMode.KeepAspectRatioByExpanding, 
+                                          Qt.TransformationMode.SmoothTransformation)
+        
+        # Create circular mask
+        rounded = QPixmap(size, size)
+        rounded.fill(Qt.GlobalColor.transparent)
+        
+        painter = QPainter(rounded)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        
+        # Draw circle mask
+        path = QPainterPath()
+        path.addEllipse(0, 0, size, size)
+        painter.setClipPath(path)
+        
+        # Draw the image
+        x = (size - pixmap.width()) // 2
+        y = (size - pixmap.height()) // 2
+        painter.drawPixmap(x, y, pixmap)
+        
+        # Draw border
+        pen = painter.pen()
+        pen.setWidth(3)
+        pen.setColor(Qt.GlobalColor.white)
+        painter.setPen(pen)
+        painter.drawEllipse(0, 0, size, size)
+        
+        painter.end()
+        return rounded
+
     def init_ui(self):
         self.setWindowTitle("Git Commit Generator")
-        self.setMinimumSize(600, 500)
+        self.setMinimumSize(700, 600)
         
         # Set window icon if available
         try:
             self.setWindowIcon(QIcon("icon.png"))
         except:
             pass
+            
+        # Create a central widget and main layout
+        self.central_widget = QWidget()
+        self.setCentralWidget(self.central_widget)
+        self.main_layout = QVBoxLayout(self.central_widget)
+        self.main_layout.setContentsMargins(15, 15, 15, 15)
+        self.main_layout.setSpacing(15)
         
         # Main widget and layout
         main_widget = QWidget()
@@ -180,6 +220,104 @@ class GitCommitGenerator(QMainWindow):
         layout.addWidget(self.log_area, 1)
         layout.addLayout(button_layout)
         
+        # Add coffee button to show donation section
+        self.coffee_btn = QPushButton()
+        self.coffee_btn.setIcon(QIcon.fromTheme("emblem-favorite", QIcon("image/coffee.png")))
+        self.coffee_btn.setIconSize(QSize(24, 24))
+        self.coffee_btn.setToolTip("Support this project")
+        self.coffee_btn.setStyleSheet("""
+            QPushButton {
+                background: transparent;
+                border: none;
+                padding: 10px;
+                border-radius: 20px;
+            }
+            QPushButton:hover {
+                background-color: #f0f0f0;
+            }
+        """)
+        
+        # Create donation section (initially hidden)
+        self.donation_frame = QFrame()
+        self.donation_frame.setFrameShape(QFrame.Shape.StyledPanel)
+        self.donation_frame.setStyleSheet("""
+            QFrame {
+                background-color: #f8f9fa;
+                border-radius: 10px;
+                padding: 15px;
+                border: 1px solid #dee2e6;
+            }
+            QLabel#title {
+                font-size: 16px;
+                font-weight: bold;
+                color: #2c3e50;
+            }
+            QLabel#subtitle {
+                color: #6c757d;
+                font-size: 13px;
+            }
+        """)
+        
+        # Initially hide the donation frame
+        self.donation_frame.setVisible(False)
+        
+        donation_layout = QHBoxLayout(self.donation_frame)
+        
+        # Add avatar
+        avatar_label = QLabel()
+        try:
+            avatar = self.create_round_avatar("image/images.jpeg")
+            avatar_label.setPixmap(avatar)
+        except Exception as e:
+            print(f"Could not load avatar: {e}")
+        
+        # Add text and button
+        text_layout = QVBoxLayout()
+        title_label = QLabel("Support My Work")
+        title_label.setObjectName("title")
+        
+        subtitle_label = QLabel("If you find this tool useful, consider buying me a coffee!")
+        subtitle_label.setObjectName("subtitle")
+        subtitle_label.setWordWrap(True)
+        
+        # PayPal button
+        paypal_btn = QPushButton("Donate with PayPal")
+        paypal_btn.setIcon(QIcon.fromTheme("emblem-money", QIcon("image/paypal.png")))
+        paypal_btn.setIconSize(QSize(20, 20))
+        paypal_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #0070ba;
+                color: white;
+                padding: 8px 16px;
+                border: none;
+                border-radius: 20px;
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                background-color: #005ea6;
+            }
+        """)
+        paypal_btn.clicked.connect(lambda: QDesktopServices.openUrl(QUrl("https://paypal.me/LotisQuiblat?country.x=PH&locale.x=en_US")))
+        
+        text_layout.addWidget(title_label)
+        text_layout.addWidget(subtitle_label)
+        text_layout.addWidget(paypal_btn, 0, Qt.AlignmentFlag.AlignLeft)
+        
+        donation_layout.addWidget(avatar_label)
+        donation_layout.addSpacing(15)
+        donation_layout.addLayout(text_layout, 1)
+        
+        # Add coffee button and donation frame to main layout
+        button_layout = QHBoxLayout()
+        button_layout.addStretch()
+        button_layout.addWidget(self.coffee_btn)
+        
+        layout.addLayout(button_layout)
+        layout.addWidget(self.donation_frame)
+        
+        # Connect coffee button to toggle donation section
+        self.coffee_btn.clicked.connect(self.toggle_donation_section)
+        
         # Apply style
         self.apply_style()
     
@@ -218,6 +356,16 @@ class GitCommitGenerator(QMainWindow):
             }
             QPushButton#stopButton:hover {
                 background-color: #d32f2f;
+            }
+            QPushButton#donateButton {
+                background-color: #ffc439;
+                color: #253b80;
+                font-weight: bold;
+                border-radius: 20px;
+                padding: 8px 20px;
+            }
+            QPushButton#donateButton:hover {
+                background-color: #f2bb35;
             }
             QTextEdit, QLineEdit, QComboBox {
                 padding: 5px;
@@ -306,6 +454,10 @@ class GitCommitGenerator(QMainWindow):
         else:
             QMessageBox.critical(self, "Error", message)
         self.reset_ui()
+    
+    def toggle_donation_section(self):
+        """Toggle the visibility of the donation section"""
+        self.donation_frame.setVisible(not self.donation_frame.isVisible())
     
     def reset_ui(self):
         self.start_btn.setEnabled(True)

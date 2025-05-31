@@ -4,7 +4,7 @@
 
 A Python utility with both CLI and GUI interfaces for generating multiple Git commits programmatically. This tool is useful for testing Git workflows, demonstrating version control concepts, or populating a new repository with commit history.
 
-![Git Commit Generator GUI](screenshot.png)
+ <img src="https://github.com/nashvel/testscript/blob/6ed6b6b52ce310427222ef3546c6bf1fab10c2c3/image/main-interface.png?raw=true">
 
 ## GitHub Repository
 
@@ -158,14 +158,15 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## Screenshots
 
-### Main Interface
-![Main Interface](screenshot1.png)
+### Main Interface  
+![Main Interface](https://github.com/nashvel/testscript/blob/6ed6b6b52ce310427222ef3546c6bf1fab10c2c3/image/main-interface.png?raw=true)
 
-### Progress Tracking
-![Progress Tracking](screenshot2.png)
+### Progress Tracking  
+![Progress Tracking](https://github.com/nashvel/testscript/blob/b7129feeaa483f3663a9e2845da6af25d153204d/image/progress-tracking.png?raw=true)
 
-### Success Message
-![Success Message](screenshot3.png)
+### Success Message  
+![Success Message](https://github.com/nashvel/testscript/blob/b7129feeaa483f3663a9e2845da6af25d153204d/image/successmessage.png?raw=true)
+
 
 ## Example Output (CLI)
 

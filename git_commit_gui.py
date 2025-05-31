@@ -1,11 +1,10 @@
 import sys
 import os
-import json
 import datetime
 import webbrowser
+import configparser
 from pathlib import Path
 from urllib.parse import quote_plus
-from PyQt6.QtCore import Qt, QThread, pyqtSignal, QSize, QUrl, QSettings
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
                            QLabel, QLineEdit, QPushButton, QProgressBar, QTextEdit, QScrollArea,
                            QFileDialog, QMessageBox, QGroupBox, QComboBox, QFrame, QGraphicsDropShadowEffect)
@@ -174,50 +173,10 @@ class CommitWorker(QThread):
         self.running = False
 
 class GitCommitGenerator(QMainWindow):
-    CONFIG_FILE = os.path.expanduser('~/.github_commit_generator_config.json')
-    
     def __init__(self):
         super().__init__()
         self.worker = None
-        self.history = self.load_history()
         self.init_ui()
-        
-    def load_history(self):
-        """Load history from config file"""
-        try:
-            if os.path.exists(self.CONFIG_FILE):
-                with open(self.CONFIG_FILE, 'r') as f:
-                    return json.load(f)
-        except Exception as e:
-            print(f"Error loading history: {e}")
-        return {
-            'github_urls': [],
-            'github_usernames': [],
-            'github_tokens': [],
-            'repo_paths': []
-        }
-        
-    def save_history(self):
-        """Save current history to config file"""
-        try:
-            # Create directory if it doesn't exist
-            os.makedirs(os.path.dirname(self.CONFIG_FILE), exist_ok=True)
-            with open(self.CONFIG_FILE, 'w') as f:
-                json.dump(self.history, f, indent=2)
-        except Exception as e:
-            print(f"Error saving history: {e}")
-            
-    def update_history(self, field, value):
-        """Update history for a specific field"""
-        if not value or value.isspace():
-            return
-            
-        history_list = self.history.get(f'{field}s', [])
-        if value in history_list:
-            history_list.remove(value)
-        history_list.insert(0, value)
-        self.history[f'{field}s'] = history_list[:10]  # Keep last 10 entries
-        self.save_history()
     
     def create_round_avatar(self, image_path, size=80):
         """Create a circular avatar from an image"""
@@ -253,6 +212,10 @@ class GitCommitGenerator(QMainWindow):
     def init_ui(self):
         self.setWindowTitle("Git Commit Generator")
         self.setMinimumSize(800, 650)
+        
+        # Load saved settings
+        self.config_file = os.path.join(Path.home(), '.github_commit_gui_config')
+        self.load_settings()
         
         try:
             self.setWindowIcon(QIcon("icon.png"))
@@ -304,79 +267,40 @@ class GitCommitGenerator(QMainWindow):
         repo_group = QGroupBox("Repository Settings")
         repo_layout = QVBoxLayout()
         
-        # Repository path with history
+        # Repository path
         path_layout = QHBoxLayout()
-        path_label = QLabel('Repository Path:')
-        self.path_edit = QComboBox()
-        self.path_edit.setEditable(True)
-        self.path_edit.setInsertPolicy(QComboBox.InsertPolicy.InsertAtTop)
-        self.path_edit.setPlaceholderText('Select repository directory')
-        self.path_edit.addItems(self.history.get('repo_paths', []))
-        
-        browse_btn = QPushButton('Browse')
+        path_layout.addWidget(QLabel("Repository Path:"))
+        self.path_edit = QLineEdit(os.getcwd())
+        self.path_edit.setPlaceholderText("Select repository directory...")
+        browse_btn = QPushButton("Browse...")
         browse_btn.clicked.connect(self.browse_directory)
-        path_layout.addWidget(path_label)
-        path_layout.addWidget(self.path_edit)
+        path_layout.addWidget(self.path_edit, 1)
         path_layout.addWidget(browse_btn)
         
-        # GitHub URL with history
+        # GitHub URL and Auth
         url_layout = QHBoxLayout()
-        url_label = QLabel('GitHub URL (optional):')
-        self.url_edit = QComboBox()
-        self.url_edit.setEditable(True)
-        self.url_edit.setInsertPolicy(QComboBox.InsertPolicy.InsertAtTop)
-        self.url_edit.setPlaceholderText('https://github.com/username/repo.git')
-        self.url_edit.addItems(self.history.get('github_urls', []))
-        url_layout.addWidget(url_label)
-        url_layout.addWidget(self.url_edit)
+        url_layout.addWidget(QLabel("GitHub URL (optional):"))
+        self.url_edit = QLineEdit()
+        self.url_edit.setPlaceholderText("https://github.com/username/repo.git")
+        url_layout.addWidget(self.url_edit, 1)
         
-        # GitHub Username with history
-        user_layout = QHBoxLayout()
-        user_label = QLabel('GitHub Username:')
-        self.github_user_edit = QComboBox()
-        self.github_user_edit.setEditable(True)
-        self.github_user_edit.setInsertPolicy(QComboBox.InsertPolicy.InsertAtTop)
-        self.github_user_edit.addItems(self.history.get('github_usernames', []))
-        user_layout.addWidget(user_label)
-        user_layout.addWidget(self.github_user_edit)
+        # GitHub Auth
+        auth_layout = QHBoxLayout()
+        auth_layout.addWidget(QLabel("GitHub Username:"))
+        self.github_user_edit = QLineEdit()
+        self.github_user_edit.setPlaceholderText("your_username")
+        auth_layout.addWidget(self.github_user_edit)
         
-        # GitHub Token with history
-        token_layout = QHBoxLayout()
-        token_label = QLabel('GitHub Token:')
-        
-        # Create a container widget to hold the combo box and line edit
-        token_container = QWidget()
-        token_container_layout = QHBoxLayout(token_container)
-        token_container_layout.setContentsMargins(0, 0, 0, 0)
-        
-        # Combo box for history
-        self.token_combo = QComboBox()
-        self.token_combo.setEditable(True)
-        self.token_combo.setInsertPolicy(QComboBox.InsertPolicy.InsertAtTop)
-        self.token_combo.addItems(self.history.get('github_tokens', []))
-        
-        # Line edit for password input
+        auth_layout.addWidget(QLabel("Personal Access Token:"))
         self.github_token_edit = QLineEdit()
-        self.github_token_edit.setPlaceholderText("Enter GitHub token")
+        self.github_token_edit.setPlaceholderText("ghp_...")
         self.github_token_edit.setEchoMode(QLineEdit.EchoMode.Password)
-        
-        # When an item is selected from the combo, update the line edit
-        self.token_combo.currentTextChanged.connect(
-            lambda text: self.github_token_edit.setText(text) if text else None
-        )
-        
-        # Add widgets to container
-        token_container_layout.addWidget(self.token_combo, 1)
-        token_container_layout.addWidget(self.github_token_edit, 2)
-        
-        token_layout.addWidget(token_label)
-        token_layout.addWidget(token_container)
+        auth_layout.addWidget(self.github_token_edit)
         
         # Add to repo group
         repo_layout.addLayout(path_layout)
         repo_layout.addLayout(url_layout)
-        repo_layout.addLayout(user_layout)
-        repo_layout.addLayout(token_layout)
+        repo_layout.addLayout(auth_layout)
         repo_group.setLayout(repo_layout)
         
         # Commit settings group
@@ -430,14 +354,12 @@ class GitCommitGenerator(QMainWindow):
         self.content_layout.addWidget(QLabel("Log:"))
         self.content_layout.addWidget(self.log_area, 1)
         
+        # Save settings when closing
+        self.destroyed.connect(self.save_settings)
+        
         # Add button layout
         button_container = QWidget()
-        button_layout = QHBoxLayout(button_container)
-        button_layout.addStretch()
-        button_layout.addWidget(self.start_btn)
-        button_layout.addWidget(self.stop_btn)
-        
-        # Add to content layout
+        button_container.setLayout(button_layout)
         self.content_layout.addWidget(button_container)
         
         # Add coffee button to show donation section
@@ -679,13 +601,9 @@ class GitCommitGenerator(QMainWindow):
         self.stop_btn.setObjectName("stopButton")
     
     def browse_directory(self):
-        directory = QFileDialog.getExistingDirectory(self, 'Select Repository Directory')
-        if directory:
-            print(f"[DEBUG] Directory selected: {directory}")
-            self.path_edit.setCurrentText(directory)
-            self.path_edit.setCurrentIndex(0)  # Move to top
-            self.update_history('repo_path', directory)
-            print(f"[DEBUG] After update - currentText: {self.path_edit.currentText()}, count: {self.path_edit.count()}")
+        dir_path = QFileDialog.getExistingDirectory(self, "Select Repository Directory")
+        if dir_path:
+            self.path_edit.setText(dir_path)
     
     def log_message(self, message):
         timestamp = datetime.datetime.now().strftime("%H:%M:%S")
@@ -707,26 +625,12 @@ class GitCommitGenerator(QMainWindow):
                 self.log_message("Operation already in progress")
                 return
                 
-            repo_path = self.path_edit.currentText().strip()
-            print(f"[DEBUG] In start_operation - repo_path: {repo_path}")
+            repo_path = self.path_edit.text().strip()
             if not repo_path:
                 self.log_message("Please select a repository directory")
-                print("[DEBUG] No repository path provided")
                 return
                 
-            github_url = self.url_edit.currentText().strip() or None
-            
-            # Update history
-            self.update_history('repo_path', repo_path)
-            if github_url:
-                self.update_history('github_url', github_url)
-                self.update_history('github_username', self.github_user_edit.currentText().strip())
-                # Update token in combo box if it's not empty
-                token = self.github_token_edit.text().strip()
-                if token:
-                    self.token_combo.setCurrentText(token)
-                    # Don't save token to history for security
-                    # self.update_history('github_token', token)
+            github_url = self.url_edit.text().strip() or None
             
             # Get number of commits
             try:
@@ -820,9 +724,50 @@ class GitCommitGenerator(QMainWindow):
         """Toggle the visibility of the donation section"""
         self.donation_frame.setVisible(not self.donation_frame.isVisible())
     
+    def load_settings(self):
+        """Load saved settings from config file"""
+        config = configparser.ConfigParser()
+        if os.path.exists(self.config_file):
+            try:
+                config.read(self.config_file)
+                if 'GitHub' in config:
+                    self.url_edit.setText(config['GitHub'].get('url', ''))
+                    self.github_user_edit.setText(config['GitHub'].get('username', ''))
+                    self.github_token_edit.setText(config['GitHub'].get('token', ''))
+                if 'Repository' in config:
+                    saved_path = config['Repository'].get('path', '')
+                    if saved_path and os.path.isdir(saved_path):
+                        self.path_edit.setText(saved_path)
+            except Exception as e:
+                self.log_message(f"Error loading settings: {str(e)}")
+    
+    def save_settings(self):
+        """Save current settings to config file"""
+        try:
+            config = configparser.ConfigParser()
+            
+            # Save GitHub settings
+            config['GitHub'] = {
+                'url': self.url_edit.text().strip(),
+                'username': self.github_user_edit.text().strip(),
+                'token': self.github_token_edit.text().strip()
+            }
+            
+            # Save repository path
+            config['Repository'] = {
+                'path': self.path_edit.text().strip()
+            }
+            
+            with open(self.config_file, 'w') as configfile:
+                config.write(configfile)
+                
+        except Exception as e:
+            self.log_message(f"Error saving settings: {str(e)}")
+    
     def reset_ui(self):
         self.start_btn.setEnabled(True)
         self.stop_btn.setEnabled(False)
+        self.progress_bar.setValue(0)
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)

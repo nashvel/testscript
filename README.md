@@ -210,7 +210,7 @@ If you find this tool useful, consider supporting its development:
 
 Or via [PayPal](https://paypal.me/LotisQuiblat?country.x=PH&locale.x=en_US)
 
-## Author
+## Authorr
 
 **Nacht**  
 Email: [nash.backup21@gmail.com](mailto:nash.backup21@gmail.com)  

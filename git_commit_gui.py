@@ -13,11 +13,12 @@ class CommitWorker(QThread):
     status = pyqtSignal(str)
     finished = pyqtSignal(bool, str)
 
-    def __init__(self, num_commits, repo_path, github_url=None):
+    def __init__(self, num_commits, repo_path, github_url=None, parent=None):
         super().__init__()
         self.num_commits = num_commits
         self.repo_path = repo_path
         self.github_url = github_url
+        self.parent_widget = parent
         self.running = True
 
     def run(self):
@@ -57,8 +58,20 @@ class CommitWorker(QThread):
                 self.status.emit("Pushing to GitHub...")
                 branch = self._run_command('git branch --show-current')
                 if branch:
-                    self._run_command(f'git push -u origin {branch}')
-                    self.status.emit("Successfully pushed to GitHub!")
+                    # Get GitHub username and token from the main thread
+                    github_user = self.parent().github_user_edit.text().strip()
+                    github_token = self.parent().github_token_edit.text().strip()
+                    
+                    if github_user and github_token:
+                        # Update remote URL with authentication
+                        repo_url = self.github_url.replace('https://', f'https://{github_user}:{github_token}@')
+                        self._run_command(f'git remote set-url origin {repo_url}')
+                        
+                        # Push with authentication
+                        self._run_command(f'git push -u origin {branch}')
+                        self.status.emit("Successfully pushed to GitHub!")
+                    else:
+                        self.status.emit("GitHub username and token are required for pushing")
             
             if self.running:
                 self.finished.emit(True, "Operation completed successfully!")
@@ -66,10 +79,23 @@ class CommitWorker(QThread):
         except Exception as e:
             self.finished.emit(False, f"Error: {str(e)}")
     
-    def _run_command(self, command):
+    def _run_command(self, command, env_vars=None):
         import subprocess
         try:
-            result = subprocess.run(command, shell=True, capture_output=True, text=True, check=True)
+            # Prepare environment
+            env = os.environ.copy()
+            if env_vars:
+                env.update(env_vars)
+                
+            # Run command with environment variables
+            result = subprocess.run(
+                command, 
+                shell=True, 
+                capture_output=True, 
+                text=True, 
+                check=True,
+                env=env
+            )
             return result.stdout.strip()
         except subprocess.CalledProcessError as e:
             self.status.emit(f"Error: {e.stderr}")
@@ -179,16 +205,30 @@ class GitCommitGenerator(QMainWindow):
         path_layout.addWidget(self.path_edit, 1)
         path_layout.addWidget(browse_btn)
         
-        # GitHub URL
+        # GitHub URL and Auth
         url_layout = QHBoxLayout()
         url_layout.addWidget(QLabel("GitHub URL (optional):"))
         self.url_edit = QLineEdit()
         self.url_edit.setPlaceholderText("https://github.com/username/repo.git")
         url_layout.addWidget(self.url_edit, 1)
         
+        # GitHub Auth
+        auth_layout = QHBoxLayout()
+        auth_layout.addWidget(QLabel("GitHub Username:"))
+        self.github_user_edit = QLineEdit()
+        self.github_user_edit.setPlaceholderText("your_username")
+        auth_layout.addWidget(self.github_user_edit)
+        
+        auth_layout.addWidget(QLabel("Personal Access Token:"))
+        self.github_token_edit = QLineEdit()
+        self.github_token_edit.setPlaceholderText("ghp_...")
+        self.github_token_edit.setEchoMode(QLineEdit.EchoMode.Password)
+        auth_layout.addWidget(self.github_token_edit)
+        
         # Add to repo group
         repo_layout.addLayout(path_layout)
         repo_layout.addLayout(url_layout)
+        repo_layout.addLayout(auth_layout)
         repo_group.setLayout(repo_layout)
         
         # Commit settings group
@@ -390,7 +430,6 @@ class GitCommitGenerator(QMainWindow):
                 border-radius: 6px;
                 font-weight: 500;
                 min-width: 100px;
-                transition: all 0.3s;
             }
             QPushButton:hover {
                 background: rgba(255, 255, 255, 0.2);
@@ -506,33 +545,63 @@ class GitCommitGenerator(QMainWindow):
         self.log_message(message)
     
     def start_operation(self):
-        self.start_btn.setEnabled(False)
-        self.stop_btn.setEnabled(True)
-        self.progress_bar.setValue(0)
-        self.log_area.clear()
-        
-        repo_path = self.path_edit.text()
-        if not os.path.isdir(repo_path):
-            QMessageBox.critical(self, "Error", "Please select a valid directory")
-            self.reset_ui()
-            return
-        
         try:
-            num_commits = int(self.num_commits.currentText())
-        except ValueError:
-            QMessageBox.critical(self, "Error", "Please enter a valid number of commits")
+            if self.worker and self.worker.isRunning():
+                self.log_message("Operation already in progress")
+                return
+                
+            repo_path = self.path_edit.text().strip()
+            if not repo_path:
+                self.log_message("Please select a repository directory")
+                return
+                
+            github_url = self.url_edit.text().strip() or None
+            
+            # Get number of commits
+            try:
+                num_commits = int(self.num_commits.currentText())
+                if num_commits <= 0:
+                    raise ValueError("Number of commits must be positive")
+            except (ValueError, AttributeError) as e:
+                self.log_message(f"Invalid number of commits: {str(e)}")
+                return
+                
+            if not os.path.isdir(repo_path):
+                self.log_message(f"Directory does not exist: {repo_path}")
+                return
+                
+            # Check if GitHub URL is provided and auth is complete
+            if github_url:
+                github_user = self.github_user_edit.text().strip()
+                github_token = self.github_token_edit.text().strip()
+                if not github_user or not github_token:
+                    self.log_message("GitHub username and token are required when providing a GitHub URL")
+                    return
+                # Update URL with credentials
+                github_url = github_url.replace('https://', f'https://{github_user}:{github_token}@')
+                    
+            # Disable UI elements during operation
+            self.start_btn.setEnabled(False)
+            self.stop_btn.setEnabled(True)
+            self.progress_bar.setValue(0)
+            self.log_area.clear()
+            
+            self.log_message(f"Starting to create {num_commits} commits in {repo_path}")
+            if github_url:
+                self.log_message(f"Will push to: {github_url.split('@')[-1]}")
+            
+            self.worker = CommitWorker(num_commits, repo_path, github_url, self)
+            self.worker.progress.connect(self.update_progress)
+            self.worker.status.connect(self.update_status)
+            self.worker.finished.connect(self.operation_finished)
+            
+            self.worker.start()
+            
+        except Exception as e:
+            self.log_message(f"Error starting operation: {str(e)}")
+            import traceback
+            traceback.print_exc()
             self.reset_ui()
-            return
-        
-        github_url = self.url_edit.text().strip() or None
-        
-        self.worker = CommitWorker(num_commits, repo_path, github_url)
-        self.worker.progress.connect(self.update_progress)
-        self.worker.status.connect(self.update_status)
-        self.worker.finished.connect(self.operation_finished)
-        
-        self.log_message(f"Starting to create {num_commits} commits...")
-        self.worker.start()
     
     def stop_operation(self):
         if self.worker and self.worker.isRunning():

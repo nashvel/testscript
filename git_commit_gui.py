@@ -13,12 +13,13 @@ class CommitWorker(QThread):
     status = pyqtSignal(str)
     finished = pyqtSignal(bool, str)
 
-    def __init__(self, num_commits, repo_path, github_url=None, parent=None):
+    def __init__(self, num_commits, repo_path, github_url=None, github_user=None, github_token=None, parent=None):
         super().__init__()
         self.num_commits = num_commits
         self.repo_path = repo_path
         self.github_url = github_url
-        self.parent_widget = parent
+        self.github_user = github_user
+        self.github_token = github_token
         self.running = True
 
     def run(self):
@@ -54,24 +55,21 @@ class CommitWorker(QThread):
                 self.progress.emit(int((i / self.num_commits) * 100))
                 self.status.emit(f"Created commit {i}/{self.num_commits}")
             
-            if self.github_url and self.running:
+            if self.github_url and self.running and self.github_user and self.github_token:
                 self.status.emit("Pushing to GitHub...")
                 branch = self._run_command('git branch --show-current')
                 if branch:
-                    # Get GitHub username and token from the main thread
-                    github_user = self.parent().github_user_edit.text().strip()
-                    github_token = self.parent().github_token_edit.text().strip()
-                    
-                    if github_user and github_token:
+                    try:
                         # Update remote URL with authentication
-                        repo_url = self.github_url.replace('https://', f'https://{github_user}:{github_token}@')
-                        self._run_command(f'git remote set-url origin {repo_url}')
+                        auth_url = self.github_url.replace('https://', f'https://{self.github_user}:{self.github_token}@')
+                        self._run_command(f'git remote set-url origin {auth_url}')
                         
                         # Push with authentication
                         self._run_command(f'git push -u origin {branch}')
                         self.status.emit("Successfully pushed to GitHub!")
-                    else:
-                        self.status.emit("GitHub username and token are required for pushing")
+                    except Exception as e:
+                        self.status.emit(f"Error pushing to GitHub: {str(e)}")
+                        raise
             
             if self.running:
                 self.finished.emit(True, "Operation completed successfully!")
@@ -586,11 +584,30 @@ class GitCommitGenerator(QMainWindow):
             self.progress_bar.setValue(0)
             self.log_area.clear()
             
-            self.log_message(f"Starting to create {num_commits} commits in {repo_path}")
+            # Get GitHub credentials if URL is provided
+            github_user = None
+            github_token = None
             if github_url:
-                self.log_message(f"Will push to: {github_url.split('@')[-1]}")
+                github_user = self.github_user_edit.text().strip()
+                github_token = self.github_token_edit.text().strip()
+                if not github_user or not github_token:
+                    self.log_message("GitHub username and token are required when providing a GitHub URL")
+                    self.reset_ui()
+                    return
+                
+                self.log_message(f"Will push to: {github_url}")
             
-            self.worker = CommitWorker(num_commits, repo_path, github_url, self)
+            self.log_message(f"Starting to create {num_commits} commits in {repo_path}")
+            
+            # Create worker with all necessary parameters
+            self.worker = CommitWorker(
+                num_commits=num_commits,
+                repo_path=repo_path,
+                github_url=github_url,
+                github_user=github_user,
+                github_token=github_token,
+                parent=self
+            )
             self.worker.progress.connect(self.update_progress)
             self.worker.status.connect(self.update_status)
             self.worker.finished.connect(self.operation_finished)

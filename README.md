@@ -4,16 +4,25 @@
 
 A Python utility with both CLI and GUI interfaces for generating multiple Git commits programmatically. This tool is useful for testing Git workflows, demonstrating version control concepts, or populating a new repository with commit history.
 
-![Git Commit Generator GUI](screenshot.png) *Screenshot of the Git Commit Generator GUI*
+![Git Commit Generator GUI](screenshot.png)
+
+## GitHub Repository
+
+```bash
+git clone https://github.com/nashvel/testscript.git
+cd testscript
+```
 
 ## Features
 
 ### GUI Version
-- Modern, user-friendly interface
-- Real-time progress tracking
-- Interactive log display
-- Dark theme with smooth animations
-- Easy repository selection
+- Modern, user-friendly interface with dark theme
+- Real-time progress tracking with visual feedback
+- Interactive log display with detailed status updates
+- Automatic credential saving for convenience
+- Easy repository selection and initialization
+- Support for both local and remote repositories
+- Cross-platform compatibility (Windows, macOS, Linux)
 
 ## Prerequisites
 
@@ -23,10 +32,10 @@ A Python utility with both CLI and GUI interfaces for generating multiple Git co
 
 ## Installation
 
-1. Clone or download this repository:
+1. Clone this repository:
    ```bash
-   git clone https://github.com/yourusername/github-script.git
-   cd github-script
+   git clone https://github.com/nashvel/testscript.git
+   cd testscript
    ```
 
 2. Install the required Python packages:
@@ -87,6 +96,27 @@ For advanced users, a command-line version is available:
 ```bash
 python3 mass_commits.py --repo /path/to/repo --count 10 --github-url https://github.com/username/repo.git
 ```
+
+### GUI Features
+
+1. **Automatic Credential Saving**
+   - Your GitHub credentials are saved automatically (securely in your home directory)
+   - No need to re-enter your token and username each time
+
+2. **Repository Management**
+   - Initialize new Git repositories with one click
+   - Connect to existing repositories easily
+   - Automatic remote repository configuration
+
+3. **Progress Tracking**
+   - Real-time progress bar
+   - Detailed log of all operations
+   - Clear status messages
+
+4. **User Experience**
+   - Clean, modern interface
+   - Responsive design
+   - Error handling with helpful messages
 
 ## Troubleshooting
 
@@ -181,7 +211,9 @@ Or via [PayPal](https://paypal.me/LotisQuiblat?country.x=PH&locale.x=en_US)
 
 ## Author
 
-[Nacht] - [nash.backup21@gmail.com]
+**Nacht**  
+Email: [nash.backup21@gmail.com](mailto:nash.backup21@gmail.com)  
+GitHub: [@nashvel](https://github.com/nashvel)
 
 ---
 

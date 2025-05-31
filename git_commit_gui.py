@@ -6,7 +6,7 @@ from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, QH
                            QLabel, QLineEdit, QPushButton, QProgressBar, QTextEdit,
                            QFileDialog, QMessageBox, QGroupBox, QComboBox, QFrame, QGraphicsDropShadowEffect)
 from PyQt6.QtCore import Qt, QThread, pyqtSignal, QSize, QUrl
-from PyQt6.QtGui import QIcon, QFont, QPixmap, QPainter, QPainterPath, QDesktopServices
+from PyQt6.QtGui import QIcon, QFont, QPixmap, QPainter, QPainterPath, QDesktopServices, QColor
 
 class CommitWorker(QThread):
     progress = pyqtSignal(int)
@@ -24,7 +24,6 @@ class CommitWorker(QThread):
         try:
             os.chdir(self.repo_path)
             
-            # Initialize repository if needed
             if not os.path.exists('.git'):
                 self.status.emit("Initializing Git repository...")
                 self._run_command('git init')
@@ -33,14 +32,12 @@ class CommitWorker(QThread):
                 self._run_command('git add .')
                 self._run_command('git commit -m "Initial commit"')
             
-            # Set up remote if provided
             if self.github_url:
                 self.status.emit("Configuring remote repository...")
                 remote = self._run_command('git remote -v')
                 if not remote or 'origin' not in remote:
                     self._run_command(f'git remote add origin {self.github_url}')
             
-            # Create commits
             self.status.emit("Creating commits...")
             for i in range(1, self.num_commits + 1):
                 if not self.running:
@@ -56,7 +53,6 @@ class CommitWorker(QThread):
                 self.progress.emit(int((i / self.num_commits) * 100))
                 self.status.emit(f"Created commit {i}/{self.num_commits}")
             
-            # Push to GitHub if URL provided
             if self.github_url and self.running:
                 self.status.emit("Pushing to GitHub...")
                 branch = self._run_command('git branch --show-current')
@@ -93,7 +89,6 @@ class GitCommitGenerator(QMainWindow):
         pixmap = QPixmap(image_path).scaled(size, size, Qt.AspectRatioMode.KeepAspectRatioByExpanding, 
                                           Qt.TransformationMode.SmoothTransformation)
         
-        # Create circular mask
         rounded = QPixmap(size, size)
         rounded.fill(Qt.GlobalColor.transparent)
         
@@ -124,56 +119,48 @@ class GitCommitGenerator(QMainWindow):
         self.setWindowTitle("Git Commit Generator")
         self.setMinimumSize(800, 650)
         
-        # Set window icon if available
         try:
             self.setWindowIcon(QIcon("icon.png"))
         except:
             pass
             
-        # Create main widget and layout
         self.central_widget = QWidget()
         self.setCentralWidget(self.central_widget)
         
-        # Main layout
         self.main_layout = QVBoxLayout(self.central_widget)
         self.main_layout.setContentsMargins(15, 15, 15, 15)
         self.main_layout.setSpacing(15)
         
-        # Create a frame for the content
         content_frame = QFrame()
         content_frame.setStyleSheet("""
             QFrame {
-                background-color: rgba(255, 255, 255, 0.95);
+                background: rgba(255, 255, 255, 0.15);
                 border-radius: 10px;
-                border: 1px solid #4a4a6a;
+                border: 1px solid rgba(255, 255, 255, 0.2);
+            }
+            QFrame:hover {
+                background: rgba(255, 255, 255, 0.2);
             }
         """)
         
-        # Add shadow effect
         shadow = QGraphicsDropShadowEffect()
-        shadow.setBlurRadius(15)
+        shadow.setBlurRadius(20)
         shadow.setXOffset(0)
-        shadow.setYOffset(0)
-        shadow.setColor(Qt.GlobalColor.darkGray)
+        shadow.setYOffset(4)
+        shadow.setColor(QColor(0, 0, 0, 50))
         content_frame.setGraphicsEffect(shadow)
         
-        # Content layout
         content_layout = QVBoxLayout(content_frame)
         content_layout.setContentsMargins(20, 20, 20, 20)
         content_layout.setSpacing(15)
         
-        # Add content frame to main layout
         self.main_layout.addWidget(content_frame)
-        
-        # Set the content layout as our main content layout
         self.content_layout = content_layout
         
-        # Main widget and layout
         main_widget = QWidget()
-        self.setCentralWidget(main_widget)
-        layout = QVBoxLayout(main_widget)
+        layout = QVBoxLayout()
+        main_widget.setLayout(layout)
         
-        # Add widgets to content layout
         for i in range(layout.count()):
             item = layout.itemAt(i)
             if item.widget():
@@ -367,19 +354,25 @@ class GitCommitGenerator(QMainWindow):
     def apply_style(self):
         self.setStyleSheet("""
             QMainWindow {
-                background-color: #f0f2f5;
-                background-image: url(image/manga_bg.svg);
-                background-position: center;
-                background-repeat: no-repeat;
-                background-attachment: fixed;
+                background-color: #6a11cb;
+                background-image: qlineargradient(
+                    x1: 0, y1: 0, x2: 1, y2: 1,
+                    stop: 0 #6a11cb, stop: 1 #2575fc
+                );
+            }
+            QWidget {
+                color: #ffffff;
+                font-size: 14px;
+                font-family: 'Segoe UI', Arial, sans-serif;
             }
             QGroupBox {
-                border: 2px solid #4a4a6a;
-                border-radius: 8px;
+                background: rgba(255, 255, 255, 0.1);
+                border: 1px solid rgba(255, 255, 255, 0.2);
+                border-radius: 10px;
                 margin-top: 15px;
                 padding: 15px 10px 10px 10px;
                 font-weight: bold;
-                background-color: white;
+                color: white;
             }
             QGroupBox::title {
                 subcontrol-origin: margin;
@@ -387,16 +380,21 @@ class GitCommitGenerator(QMainWindow):
                 padding: 0 5px;
             }
             QPushButton {
-                background-color: #4a4a6a;
+                background: rgba(255, 255, 255, 0.1);
                 color: white;
-                border: none;
+                border: 1px solid rgba(255, 255, 255, 0.3);
                 padding: 8px 16px;
-                border-radius: 4px;
-                font-weight: bold;
+                border-radius: 6px;
+                font-weight: 500;
                 min-width: 100px;
+                transition: all 0.3s;
             }
             QPushButton:hover {
-                background-color: #6a6a8a;
+                background: rgba(255, 255, 255, 0.2);
+                border: 1px solid rgba(255, 255, 255, 0.5);
+            }
+            QPushButton:pressed {
+                background: rgba(255, 255, 255, 0.3);
             }
             QPushButton:disabled {
                 background-color: #cccccc;
@@ -418,21 +416,34 @@ class GitCommitGenerator(QMainWindow):
                 background-color: #f2bb35;
             }
             QTextEdit, QLineEdit, QComboBox {
-                padding: 8px;
-                border: 1px solid #4a4a6a;
-                border-radius: 4px;
-                background-color: white;
+                padding: 8px 12px;
+                border: 1px solid rgba(255, 255, 255, 0.3);
+                border-radius: 6px;
+                background: rgba(255, 255, 255, 0.1);
+                color: white;
+                selection-background-color: #6a11cb;
+            }
+            QLineEdit:focus, QTextEdit:focus, QComboBox:focus {
+                border: 1px solid rgba(255, 255, 255, 0.5);
+            }
+            QComboBox::drop-down {
+                border: none;
+                background: transparent;
             }
             QProgressBar {
-                border: 1px solid #4a4a6a;
+                border: 1px solid rgba(255, 255, 255, 0.3);
                 border-radius: 4px;
                 text-align: center;
                 height: 20px;
                 color: white;
+                background: rgba(0, 0, 0, 0.2);
             }
             QProgressBar::chunk {
-                background-color: #4a4a6a;
-                width: 10px;
+                background-color: #6a11cb;
+                background-image: qlineargradient(
+                    x1: 0, y1: 0, x2: 1, y2: 0,
+                    stop: 0 #6a11cb, stop: 1 #2575fc
+                );
                 border-radius: 2px;
             }
         """)

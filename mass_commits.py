@@ -14,16 +14,13 @@ def run_command(command, shell=True):
         return None
 
 def setup_git_repo():
-    # Initialize git repository if not already one
     if not os.path.exists('.git'):
         run_command('git init')
-        # Create initial commit if this is a new repo
         with open('commit_log.txt', 'w') as f:
             f.write('Initial commit\n')
         run_command('git add .')
         run_command('git commit -m "Initial commit"')
     
-    # Check if remote origin exists
     remote = run_command('git remote -v')
     if not remote or 'origin' not in remote:
         print("\nNo remote repository configured.")
@@ -35,13 +32,11 @@ def push_to_github():
     """Push changes to GitHub repository"""
     print("\nPushing changes to GitHub...")
     
-    # Get the current branch name
     branch = run_command('git branch --show-current')
     if not branch:
         print("Error: Could not determine current branch")
         return False
     
-    # Check if GitHub credentials are needed
     result = run_command('git push -u origin ' + branch)
     if result is None:
         print("\nPush failed. You might need to authenticate with GitHub.")
@@ -55,12 +50,10 @@ def make_commits():
     setup_git_repo()
     
     for i in range(1, 101):
-        # Append current timestamp and commit number to file
         with open('commit_log.txt', 'a') as f:
             timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             f.write(f"Commit {i} at {timestamp}\n")
         
-        # Stage and commit the changes
         run_command('git add .')
         run_command(f'git commit -m "Commit {i}: Made at {timestamp}"')
         

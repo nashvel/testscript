@@ -4,7 +4,7 @@ import datetime
 import webbrowser
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
                            QLabel, QLineEdit, QPushButton, QProgressBar, QTextEdit,
-                           QFileDialog, QMessageBox, QGroupBox, QComboBox, QFrame)
+                           QFileDialog, QMessageBox, QGroupBox, QComboBox, QFrame, QGraphicsDropShadowEffect)
 from PyQt6.QtCore import Qt, QThread, pyqtSignal, QSize, QUrl
 from PyQt6.QtGui import QIcon, QFont, QPixmap, QPainter, QPainterPath, QDesktopServices
 
@@ -122,7 +122,7 @@ class GitCommitGenerator(QMainWindow):
 
     def init_ui(self):
         self.setWindowTitle("Git Commit Generator")
-        self.setMinimumSize(700, 600)
+        self.setMinimumSize(800, 650)
         
         # Set window icon if available
         try:
@@ -130,17 +130,56 @@ class GitCommitGenerator(QMainWindow):
         except:
             pass
             
-        # Create a central widget and main layout
+        # Create main widget and layout
         self.central_widget = QWidget()
         self.setCentralWidget(self.central_widget)
+        
+        # Main layout
         self.main_layout = QVBoxLayout(self.central_widget)
         self.main_layout.setContentsMargins(15, 15, 15, 15)
         self.main_layout.setSpacing(15)
+        
+        # Create a frame for the content
+        content_frame = QFrame()
+        content_frame.setStyleSheet("""
+            QFrame {
+                background-color: rgba(255, 255, 255, 0.95);
+                border-radius: 10px;
+                border: 1px solid #4a4a6a;
+            }
+        """)
+        
+        # Add shadow effect
+        shadow = QGraphicsDropShadowEffect()
+        shadow.setBlurRadius(15)
+        shadow.setXOffset(0)
+        shadow.setYOffset(0)
+        shadow.setColor(Qt.GlobalColor.darkGray)
+        content_frame.setGraphicsEffect(shadow)
+        
+        # Content layout
+        content_layout = QVBoxLayout(content_frame)
+        content_layout.setContentsMargins(20, 20, 20, 20)
+        content_layout.setSpacing(15)
+        
+        # Add content frame to main layout
+        self.main_layout.addWidget(content_frame)
+        
+        # Set the content layout as our main content layout
+        self.content_layout = content_layout
         
         # Main widget and layout
         main_widget = QWidget()
         self.setCentralWidget(main_widget)
         layout = QVBoxLayout(main_widget)
+        
+        # Add widgets to content layout
+        for i in range(layout.count()):
+            item = layout.itemAt(i)
+            if item.widget():
+                self.content_layout.addWidget(item.widget())
+            elif item.layout():
+                self.content_layout.addLayout(item.layout())
         
         # Repository settings group
         repo_group = QGroupBox("Repository Settings")
@@ -321,17 +360,26 @@ class GitCommitGenerator(QMainWindow):
         # Apply style
         self.apply_style()
     
+    def resizeEvent(self, event):
+        # Update background if needed
+        super().resizeEvent(event)
+    
     def apply_style(self):
         self.setStyleSheet("""
             QMainWindow {
-                background-color: #f5f5f5;
+                background-color: #f0f2f5;
+                background-image: url(image/manga_bg.svg);
+                background-position: center;
+                background-repeat: no-repeat;
+                background-attachment: fixed;
             }
             QGroupBox {
-                border: 1px solid #ccc;
-                border-radius: 5px;
-                margin-top: 10px;
-                padding-top: 15px;
+                border: 2px solid #4a4a6a;
+                border-radius: 8px;
+                margin-top: 15px;
+                padding: 15px 10px 10px 10px;
                 font-weight: bold;
+                background-color: white;
             }
             QGroupBox::title {
                 subcontrol-origin: margin;
@@ -339,14 +387,16 @@ class GitCommitGenerator(QMainWindow):
                 padding: 0 5px;
             }
             QPushButton {
-                background-color: #4CAF50;
+                background-color: #4a4a6a;
                 color: white;
                 border: none;
                 padding: 8px 16px;
                 border-radius: 4px;
+                font-weight: bold;
+                min-width: 100px;
             }
             QPushButton:hover {
-                background-color: #45a049;
+                background-color: #6a6a8a;
             }
             QPushButton:disabled {
                 background-color: #cccccc;
@@ -368,18 +418,22 @@ class GitCommitGenerator(QMainWindow):
                 background-color: #f2bb35;
             }
             QTextEdit, QLineEdit, QComboBox {
-                padding: 5px;
-                border: 1px solid #ccc;
+                padding: 8px;
+                border: 1px solid #4a4a6a;
                 border-radius: 4px;
+                background-color: white;
             }
             QProgressBar {
-                border: 1px solid #ccc;
+                border: 1px solid #4a4a6a;
                 border-radius: 4px;
                 text-align: center;
+                height: 20px;
+                color: white;
             }
             QProgressBar::chunk {
-                background-color: #4CAF50;
+                background-color: #4a4a6a;
                 width: 10px;
+                border-radius: 2px;
             }
         """)
         self.stop_btn.setObjectName("stopButton")
